@@ -22,7 +22,7 @@ function varargout = cellfinder_gui(varargin)
 
 % Edit the above text to modify the response to help cellfinder_gui
 
-% Last Modified by GUIDE v2.5 09-Jun-2014 17:29:53
+% Last Modified by GUIDE v2.5 10-Jun-2014 16:44:37
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -78,6 +78,9 @@ function select_save_dir_Callback(hObject, eventdata, handles)
 % hObject    handle to select_save_dir (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+selected_dir = uigetdir('/home/adityajoshi/git/cellfinder_gui');
+selected_dir = [selected_dir '/'];
+set(handles.select_save_dir,'String',selected_dir);
 
 
 % --- Executes on button press in pushbutton2.
@@ -92,7 +95,10 @@ function find_cell_button_Callback(hObject, eventdata, handles)
 % hObject    handle to find_cell_button (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-
+load_dir = '/home/adityajoshi/git/cellfinder_gui/'; %make this a parameter
+path = genpath(load_dir);
+addpath(path);
+gen_test(get(handles.select_save_dir,'String'),get(handles.proj_name,'String'),get(handles.filelist));
 
 
 function proj_name_Callback(hObject, eventdata, handles)
@@ -102,6 +108,8 @@ function proj_name_Callback(hObject, eventdata, handles)
 
 % Hints: get(hObject,'String') returns contents of proj_name as text
 %        str2double(get(hObject,'String')) returns contents of proj_name as a double
+save_fn = str2num(get(hObject,'String'));
+guidata(hObject, handles);
 
 
 % --- Executes during object creation, after setting all properties.
@@ -115,3 +123,79 @@ function proj_name_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
+
+
+% --- Executes on button press in load_directory.
+function load_directory_Callback(hObject, eventdata, handles)
+% hObject    handle to load_directory (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+load_dir = uigetdir('/home/adityajoshi/git/cellfinder_gui');
+load_dir = [load_dir '/'];
+set(handles.load_directory,'String',load_dir);
+
+
+
+% --- Executes on selection change in filelist.
+function filelist_Callback(hObject, eventdata, handles)
+% hObject    handle to filelist (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: contents = cellstr(get(hObject,'String')) returns filelist contents as cell array
+%        contents{get(hObject,'Value')} returns selected item from filelist
+get(handles.figure1,'SelectionType');
+% If double click
+if strcmp(get(handles.figure1,'SelectionType'),'open')
+    index_selected = get(handles.filelist,'Value');
+    file_list = get(handles.filelist,'String');
+    % Item selected in list box
+    filename = file_list{index_selected};
+    % If folder
+    if  handles.is_dir(handles.sorted_index(index_selected))
+        cd (filename)
+        % Load list box with new folder.
+        load_listbox(pwd,handles)
+    else
+        [path,name,ext] = fileparts(filename);
+        switch ext
+            case '.fig'
+                % Open FIG-file with guide command.
+                guide (filename)
+            otherwise
+                try
+                    % Use open for other file types.
+                    open(filename)
+                catch ex
+                    errordlg(...
+                      ex.getReport('basic'),'File Type Error','modal')
+                end
+        end
+    end
+end
+
+
+% --- Executes during object creation, after setting all properties.
+function filelist_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to filelist (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: listbox controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+load_listbox(get(handles.load_directory,'String'));
+
+function load_listbox(dir_path, handles)
+cd (dir_path)
+dir_struct = dir(dir_path);
+[sorted_names,sorted_index] = sortrows({dir_struct.name}');
+handles.file_names = sorted_names;
+handles.is_dir = [dir_struct.isdir];
+handles.sorted_index = sorted_index;
+guidata(handles.figure1,handles)
+set(handles.listbox1,'String',handles.file_names,...
+	'Value',1)
+set(handles.text1,'String',pwd)
