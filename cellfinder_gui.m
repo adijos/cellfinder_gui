@@ -22,7 +22,7 @@ function varargout = cellfinder_gui(varargin)
 
 % Edit the above text to modify the response to help cellfinder_gui
 
-% Last Modified by GUIDE v2.5 10-Jun-2014 16:44:37
+% Last Modified by GUIDE v2.5 13-Jun-2014 17:19:52
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -58,6 +58,51 @@ handles.output = hObject;
 % Update handles structure
 guidata(hObject, handles);
 
+%filelist loading
+if nargin == 3,
+    initial_dir = '/home/adityajoshi/git/cellfinder_gui/data';
+elseif nargin > 4
+    if strcmpi(varargin{1},'dir')
+        if exist(varargin{2},'dir')
+            initial_dir = varargin{2};
+        else
+            errordlg('Input argument must be a valid directory', 'Input Argument Error!')
+            return
+        end
+    else
+        errordlg('Unrecognized input argument', 'Input Argument Error!')
+        return;
+    end
+end
+%Populate the filelist
+load_listbox(initial_dir, handles)
+% Return figure handle as first output argument
+
+% Choose default command line output for cellfinder_gui
+handles.output = hObject;
+
+% Update handles structure
+guidata(hObject, handles);
+%filelist loading
+if nargin <= 4,
+    graph_dir = '/home/adityajoshi/git/cellfinder_gui/save';
+elseif nargin > 5
+    if strcmpi(varargin{1},'dir')
+        if exist(varargin{2},'dir')
+            graph_dir = varargin{3};
+        else
+            errordlg('Input argument must be a valid directory', 'Input Argument Error!')
+            return
+        end
+    else
+        errordlg('Unrecognized input argument', 'Input Argument Error!')
+        return;
+    end
+end
+%Populate the filelist
+load_listbox2(graph_dir, handles)
+% Return figure handle as first output argument
+
 % UIWAIT makes cellfinder_gui wait for user response (see UIRESUME)
 % uiwait(handles.figure1);
 
@@ -80,7 +125,7 @@ function select_save_dir_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 selected_dir = uigetdir('/home/adityajoshi/git/cellfinder_gui');
 selected_dir = [selected_dir '/'];
-set(handles.select_save_dir,'String',selected_dir);
+set(handles.save_dir,'String',selected_dir);
 
 
 % --- Executes on button press in pushbutton2.
@@ -98,7 +143,15 @@ function find_cell_button_Callback(hObject, eventdata, handles)
 load_dir = '/home/adityajoshi/git/cellfinder_gui/'; %make this a parameter
 path = genpath(load_dir);
 addpath(path);
-gen_test(get(handles.select_save_dir,'String'),get(handles.proj_name,'String'),get(handles.filelist));
+%gen_test(get(handles.select_save_dir,'String'),get(handles.proj_name,'String'),get(handles.filelist));
+% NOTE: assumes list has only file type desired
+% to change, edit listbox callback function
+
+%have to add error checking
+files = get(handles.loaded_fn,'String');
+save_dir = get(handles.save_dir,'String');
+gen_test(get(handles.save_dir,'String'),get(handles.proj_name,'String'),files);
+
 
 
 function proj_name_Callback(hObject, eventdata, handles)
@@ -125,17 +178,6 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
 end
 
 
-% --- Executes on button press in load_directory.
-function load_directory_Callback(hObject, eventdata, handles)
-% hObject    handle to load_directory (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-load_dir = uigetdir('/home/adityajoshi/git/cellfinder_gui');
-load_dir = [load_dir '/'];
-set(handles.load_directory,'String',load_dir);
-
-
-
 % --- Executes on selection change in filelist.
 function filelist_Callback(hObject, eventdata, handles)
 % hObject    handle to filelist (see GCBO)
@@ -144,35 +186,53 @@ function filelist_Callback(hObject, eventdata, handles)
 
 % Hints: contents = cellstr(get(hObject,'String')) returns filelist contents as cell array
 %        contents{get(hObject,'Value')} returns selected item from filelist
+
 get(handles.figure1,'SelectionType');
-% If double click
 if strcmp(get(handles.figure1,'SelectionType'),'open')
-    index_selected = get(handles.filelist,'Value');
-    file_list = get(handles.filelist,'String');
-    % Item selected in list box
-    filename = file_list{index_selected};
-    % If folder
-    if  handles.is_dir(handles.sorted_index(index_selected))
-        cd (filename)
-        % Load list box with new folder.
-        load_listbox(pwd,handles)
+    index_selected = get(handles.filelist,{'string','Value'});
+    if length(index_selected) > 2
+        %from testing will delete later
+        %{
+        a = 'here'
+        length(index_selected)
+        index_selected
+        index_selected{2}
+        %}
+        return
     else
-        [path,name,ext] = fileparts(filename);
-        switch ext
-            case '.fig'
-                % Open FIG-file with guide command.
-                guide (filename)
-            otherwise
-                try
-                    % Use open for other file types.
-                    open(filename)
-                catch ex
-                    errordlg(...
-                      ex.getReport('basic'),'File Type Error','modal')
-                end
+        %b = 'there'
+        index_selected = index_selected{2};
+        file_list = get(handles.filelist,'String');
+        filename = file_list{index_selected};
+        if  handles.is_dir(handles.sorted_index(index_selected))
+            cd (filename)
+            load_listbox(pwd,handles)
         end
     end
 end
+list_entries = get(handles.filelist,'String');
+index_selected = get(handles.filelist,'Value');
+fn = cell(length(index_selected),1);
+for i=1:length(index_selected);
+    fn{i} = [list_entries{index_selected(i)}];
+end
+%fn
+set(handles.loaded_fn,'String',fn)
+
+
+% ------------------------------------------------------------
+% Read the current directory and sort the names
+% ------------------------------------------------------------
+function load_listbox(dir_path,handles)
+cd (dir_path)
+dir_struct = dir(dir_path);
+[sorted_names,sorted_index] = sortrows({dir_struct.name}');
+handles.file_names = sorted_names;
+handles.is_dir = [dir_struct.isdir];
+handles.sorted_index = sorted_index;
+guidata(handles.figure1,handles)
+set(handles.filelist,'String',handles.file_names,...
+	'Value',1)
 
 
 % --- Executes during object creation, after setting all properties.
@@ -183,12 +243,112 @@ function filelist_CreateFcn(hObject, eventdata, handles)
 
 % Hint: listbox controls usually have a white background on Windows.
 %       See ISPC and COMPUTER.
+
+usewhitebg = 1;
+if usewhitebg
+    set(hObject,'BackgroundColor','white');
+else
+    set(hObject,'BackgroundColor',get(0,'defaultUicontrolBackgroundColor'));
+end
+
+% --- Executes during object creation, after setting all properties.
+function figure1_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to figure1 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Add the current directory to the path, as the pwd might change thru' the
+% gui. Remove the directory from the path when gui is closed 
+% (See figure1_DeleteFcn)
+setappdata(hObject, 'StartPath', pwd);
+addpath(pwd);
+
+% --- Executes during object deletion, before destroying properties.
+function figure1_DeleteFcn(hObject, eventdata, handles)
+% hObject    handle to figure1 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Remove the directory added to the path in the figure1_CreateFcn.
+if isappdata(hObject, 'StartPath')
+    rmpath(getappdata(hObject, 'StartPath'));
+end
+
+
+% --- Executes during object creation, after setting all properties.
+function loaded_fn_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to loaded_fn (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
-load_listbox(get(handles.load_directory,'String'));
 
-function load_listbox(dir_path, handles)
+
+% --- Executes during object creation, after setting all properties.
+function select_save_dir_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to select_save_dir (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+%DUMMY FUNCTION NEED TO REMOVE 
+
+
+% --- Executes on selection change in graph_files.
+function graph_files_Callback(hObject, eventdata, handles)
+% hObject    handle to graph_files (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: contents = cellstr(get(hObject,'String')) returns graph_files contents as cell array
+%        contents{get(hObject,'Value')} returns selected item from graph_files
+
+get(handles.figure1,'SelectionType');
+if strcmp(get(handles.figure1,'SelectionType'),'open')
+    index_selected = get(handles.graph_files,{'string','Value'});
+    if length(index_selected) > 2
+        %from testing will delete later
+        %{
+        a = 'here'
+        length(index_selected)
+        index_selected
+        index_selected{2}
+        %}
+        return
+    else
+        %b = 'there'
+        index_selected = index_selected{2};
+        file_list = get(handles.graph_files,'String');
+        filename = file_list{index_selected};
+        if  handles.is_dir(handles.sorted_index(index_selected))
+            cd (filename)
+            load_listbox2(pwd,handles)
+        else
+            
+            %sprintf(pwd)
+            %sprintf(filename)
+            load(filename)
+            axes(handles.result_plot); % Switches focus to this axes object.
+            colormap('gray');
+            %t = linspace(0,1,1000);
+            %plot(t,sin(t));
+            imagesc(img,'Parent',handles.result_plot); % Display it with some command such as imagesc, image, imshow.
+            colorbar;
+        end
+    end
+end
+%{
+list_entries = get(handles.filelist,'String');
+index_selected = get(handles.filelist,'Value');
+fn = cell(length(index_selected),1);
+for i=1:length(index_selected);
+    fn{i} = [list_entries{index_selected(i)}];
+end
+%}
+%fn
+%set(handles.loaded_fn,'String',fn)
+
+function load_listbox2(dir_path,handles)
 cd (dir_path)
 dir_struct = dir(dir_path);
 [sorted_names,sorted_index] = sortrows({dir_struct.name}');
@@ -196,6 +356,21 @@ handles.file_names = sorted_names;
 handles.is_dir = [dir_struct.isdir];
 handles.sorted_index = sorted_index;
 guidata(handles.figure1,handles)
-set(handles.listbox1,'String',handles.file_names,...
+set(handles.graph_files,'String',handles.file_names,...
 	'Value',1)
-set(handles.text1,'String',pwd)
+
+
+% --- Executes during object creation, after setting all properties.
+function graph_files_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to graph_files (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: listbox controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+usewhitebg = 1;
+if usewhitebg
+    set(hObject,'BackgroundColor','white');
+else
+    set(hObject,'BackgroundColor',get(0,'defaultUicontrolBackgroundColor'));
+end
